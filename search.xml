@@ -4,6 +4,63 @@
   
     
     <entry>
+      <title>CubeMX DMA+ADC</title>
+      <link href="/2024/10/20/DMAADC/"/>
+      <url>/2024/10/20/DMAADC/</url>
+      
+        <content type="html"><![CDATA[<p>选择 adc1 的通道 0 开启持续转换模式，转换周期设置为 239.5 ，可以自行调整。<br><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/dmaadc1.png?imageSlim" alt=""><br>设置 dma 添加 dma 通道 选择 adc1 然后将模式选择为循环模式,其他默认即可。<br><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/dmaadc2.png?imageSlim" alt=""><br>然后在 main 函数初始化后添加如下代码 开启转换 如果一轮只搬运一次数据就可以定义个变量，如果要一轮搬运多次数据，就定义一个数组进行接收，第三个参数改为数组的长度即可。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HAL_ADC_Start_DMA(&amp;hadc1,&amp;dy,<span class="number">1</span>);</span><br></pre></td></tr></table></figure><p>然后在主循环里打印出来。这样配置 只需调用一次开始函数，DMA 就会一直进行转换，但转换周期不能太短，会卡死。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">printf</span>(<span class="string">&quot;%.2f\n&quot;</span>,dy*<span class="number">3.3</span>/<span class="number">4096</span>);</span><br><span class="line">HAL_Delay(<span class="number">500</span>);</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> STM32 </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>CubeMX DMA+空闲中断实现串口收发数据</title>
+      <link href="/2024/10/20/DMA%E7%A9%BA%E9%97%B2%E4%B8%B2%E5%8F%A3/"/>
+      <url>/2024/10/20/DMA%E7%A9%BA%E9%97%B2%E4%B8%B2%E5%8F%A3/</url>
+      
+        <content type="html"><![CDATA[<p><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/dmaidle1.png?imageSlim" alt=""><br>其他参数都默认即可。</p><p>记得打开串口接收中断<br><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/dmaidle2.png?imageSlim" alt=""><br>然后在主函数中开启空闲中断和 DMA 接收。recbuf 是数据缓存数组自己定义一个，1024 是数组长度。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">__HAL_UART_ENABLE_IT(&amp;huart1,UART_IT_IDLE);</span><br><span class="line">  HAL_UART_Receive_DMA(&amp;huart1,recbuf,<span class="number">1024</span>);</span><br></pre></td></tr></table></figure><p>然后在串口中断处理函数（USART1_IRQHandler)中添加以下代码，即可。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span>(__HAL_UART_GET_FLAG(&amp;huart1,UART_FLAG_IDLE))&#123;</span><br><span class="line">    __HAL_UART_CLEAR_FLAG(&amp;huart1,UART_FLAG_IDLE);</span><br><span class="line">    HAL_UART_DMAStop(&amp;huart1);</span><br><span class="line">    HAL_UART_Transmit_DMA(&amp;huart1,recbuf,<span class="number">1024</span>-__HAL_DMA_GET_COUNTER(&amp;hdma_usart1_rx));</span><br><span class="line">    HAL_UART_Receive_DMA(&amp;huart1,recbuf,<span class="number">1024</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> STM32 </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>CubeMX DMA 内存到内存配置</title>
+      <link href="/2024/10/20/%E5%86%85%E5%AD%98%E5%88%B0%E5%86%85%E5%AD%98/"/>
+      <url>/2024/10/20/%E5%86%85%E5%AD%98%E5%88%B0%E5%86%85%E5%AD%98/</url>
+      
+        <content type="html"><![CDATA[<p><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/mtom1.png?imageSlim" alt=""><br>然后通道和其他都默认即可<br><img src="https://images-1323170699.cos.ap-guangzhou.myqcloud.com/mtom2.png?imageSlim" alt=""><br>然后生成代码 在代码中定义两个数组 一个源数组，一个目标数组 类型都要是 uint32_t 的。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> srcbuf[<span class="number">5</span>]=&#123;<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>,<span class="number">5</span>&#125;,terbuf[<span class="number">5</span>];</span><br></pre></td></tr></table></figure><p>然后启动 DMA 搬运数据 ,数组需要强制类型转化为 uint32_t,最后一个参数是数组的长度乘上一个数据的长度。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">HAL_DMA_Start(&amp;hdma_memtomem_dma1_channel2, (<span class="type">uint32_t</span>)srcbuf, (<span class="type">uint32_t</span>)terbuf, <span class="number">5</span>*<span class="keyword">sizeof</span>(<span class="type">uint32_t</span>);</span><br></pre></td></tr></table></figure><p>然后打印出来</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span>(<span class="type">int</span> i=<span class="number">0</span>;i&lt;<span class="number">5</span>;i++)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;%ld\n &quot;</span>,terbuf[i]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>结果</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line"><span class="number">4</span></span><br><span class="line"><span class="number">5</span></span><br></pre></td></tr></table></figure><p>其他类型的数据也同理。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> STM32 </category>
+          
+      </categories>
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>180°舵机如何控制？</title>
       <link href="/2024/10/19/%E8%88%B5%E6%9C%BA/"/>
       <url>/2024/10/19/%E8%88%B5%E6%9C%BA/</url>
@@ -13,7 +70,7 @@
       
       <categories>
           
-          <category> 各种模块 </category>
+          <category> Sensor </category>
           
       </categories>
       
@@ -32,7 +89,7 @@
       
       <categories>
           
-          <category> 数据结构与算法 </category>
+          <category> DSA </category>
           
       </categories>
       
@@ -52,35 +109,6 @@
     
     
     <entry>
-      <title>公路村村通 Prim算法 （链式前向星实现）</title>
-      <link href="/2024/10/19/%E5%85%AC%E8%B7%AF%E6%9D%91%E6%9D%91%E9%80%9A/"/>
-      <url>/2024/10/19/%E5%85%AC%E8%B7%AF%E6%9D%91%E6%9D%91%E9%80%9A/</url>
-      
-        <content type="html"><![CDATA[<h2 id="题目描述"><a href="#题目描述" class="headerlink" title="题目描述"></a>题目描述</h2><p>现有村落间道路的统计数据表中，列出了有可能建设成标准公路的若干条道路的成本，求使每个村落都有公路连通所需要的最低成本。</p><h3 id="输入格式"><a href="#输入格式" class="headerlink" title="输入格式"></a>输入格式</h3><p>输入数据包括城镇数目正整数 N（≤1000）和候选道路数目 M（≤3N）；随后的 M 行对应 M 条道路，每行给出 3 个正整数，分别是该条道路直接连通的两个城镇的编号以及该道路改建的预算成本。为简单起见，城镇从 1 到 N 编号。</p><h3 id="输出格式"><a href="#输出格式" class="headerlink" title="输出格式"></a>输出格式</h3><p>输出村村通需要的最低成本。如果输入数据不足以保证畅通，则输出 −1，表示需要建设更多公路。</p><h3 id="输入样例"><a href="#输入样例" class="headerlink" title="输入样例"></a>输入样例</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">6</span> <span class="number">15</span></span><br><span class="line"><span class="number">1</span> <span class="number">2</span> <span class="number">5</span></span><br><span class="line"><span class="number">1</span> <span class="number">3</span> <span class="number">3</span></span><br><span class="line"><span class="number">1</span> <span class="number">4</span> <span class="number">7</span></span><br><span class="line"><span class="number">1</span> <span class="number">5</span> <span class="number">4</span></span><br><span class="line"><span class="number">1</span> <span class="number">6</span> <span class="number">2</span></span><br><span class="line"><span class="number">2</span> <span class="number">3</span> <span class="number">4</span></span><br><span class="line"><span class="number">2</span> <span class="number">4</span> <span class="number">6</span></span><br><span class="line"><span class="number">2</span> <span class="number">5</span> <span class="number">2</span></span><br><span class="line"><span class="number">2</span> <span class="number">6</span> <span class="number">6</span></span><br><span class="line"><span class="number">3</span> <span class="number">4</span> <span class="number">6</span></span><br><span class="line"><span class="number">3</span> <span class="number">5</span> <span class="number">1</span></span><br><span class="line"><span class="number">3</span> <span class="number">6</span> <span class="number">1</span></span><br><span class="line"><span class="number">4</span> <span class="number">5</span> <span class="number">10</span></span><br><span class="line"><span class="number">4</span> <span class="number">6</span> <span class="number">8</span></span><br><span class="line"><span class="number">5</span> <span class="number">6</span> <span class="number">3</span></span><br></pre></td></tr></table></figure><h3 id="输出样例"><a href="#输出样例" class="headerlink" title="输出样例"></a>输出样例</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">12</span><br></pre></td></tr></table></figure><h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>链式前向星存图，然后从某一个结点开始遍历整个图，每次选择已经收入囊中的结点距离他们所能到达的结点的最小权值即可。</p><h3 id="AC-代码"><a href="#AC-代码" class="headerlink" title="AC 代码"></a>AC 代码</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;bits/stdc++.h&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="type">const</span> <span class="type">int</span> fw=<span class="number">1e5</span><span class="number">+10</span>;</span><br><span class="line"><span class="type">int</span> e[fw],w[fw],ne[fw],h[fw],bj[fw],xb,n,m,zx,gs;<span class="comment">//e数组存储终点值，w数组存储权值，ne数组存储下一个结点的下标，h数组存储头结点下标，bj数组标记是否被访问过，xb用来存储e数组用到了哪里，zx用来存储最小总权值，gs用来存储已经收入囊中的结点个数。</span></span><br><span class="line">vector&lt;<span class="type">int</span>&gt;v;<span class="comment">//存储已经收入囊中的结点</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">cr</span><span class="params">(<span class="type">int</span> x,<span class="type">int</span> y,<span class="type">int</span> z)</span></span>&#123;<span class="comment">//链式前向星插入模板</span></span><br><span class="line">e[xb]=y;</span><br><span class="line">w[xb]=z;</span><br><span class="line">ne[xb]=h[x];</span><br><span class="line">h[x]=xb++;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">prim</span><span class="params">(<span class="type">int</span> x)</span></span>&#123;</span><br><span class="line"><span class="keyword">if</span>(gs==n<span class="number">-1</span>)&#123;<span class="comment">//如果所有结点都被访问了就直接输出即可</span></span><br><span class="line">cout&lt;&lt;zx;</span><br><span class="line"><span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line">bj[x]=<span class="number">1</span>;</span><br><span class="line">v.<span class="built_in">push_back</span>(x);<span class="comment">//收入囊中</span></span><br><span class="line"><span class="type">int</span> t=<span class="number">99999999</span>,u=<span class="number">-1</span>;</span><br><span class="line"><span class="keyword">for</span>(<span class="keyword">auto</span> k:v)&#123;<span class="comment">//寻找最小权值的边</span></span><br><span class="line"><span class="keyword">for</span>(<span class="type">int</span> i=h[k];i!=<span class="number">-1</span>;i=ne[i])&#123;</span><br><span class="line"><span class="keyword">if</span>(w[i]&lt;t&amp;&amp;(!bj[e[i]]))&#123;</span><br><span class="line">t=w[i];</span><br><span class="line">u=e[i];</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span>(u!=<span class="number">-1</span>)&#123;</span><br><span class="line">zx+=t;</span><br><span class="line">gs++;</span><br><span class="line"><span class="built_in">prim</span>(u);</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line"><span class="built_in">memset</span>(h,<span class="number">-1</span>,<span class="built_in">sizeof</span>(h));</span><br><span class="line">cin&gt;&gt;n&gt;&gt;m;</span><br><span class="line"><span class="keyword">while</span>(m--)&#123;</span><br><span class="line"><span class="type">int</span> a,b,c;</span><br><span class="line">cin&gt;&gt;a&gt;&gt;b&gt;&gt;c;</span><br><span class="line"><span class="built_in">cr</span>(a,b,c);</span><br><span class="line"><span class="built_in">cr</span>(b,a,c);</span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">prim</span>(n);</span><br><span class="line">cout&lt;&lt;<span class="number">0</span>;</span><br><span class="line"><span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><hr>]]></content>
-      
-      
-      <categories>
-          
-          <category> 数据结构与算法 </category>
-          
-      </categories>
-      
-      
-        <tags>
-            
-            <tag> 算法 </tag>
-            
-            <tag> 图论 </tag>
-            
-            <tag> Prim算法 </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-    
-    <entry>
       <title>7-6 传染链 (25分）</title>
       <link href="/2024/10/19/%E4%BC%A0%E6%9F%93%E9%93%BE/"/>
       <url>/2024/10/19/%E4%BC%A0%E6%9F%93%E9%93%BE/</url>
@@ -90,7 +118,7 @@
       
       <categories>
           
-          <category> 数据结构与算法 </category>
+          <category> DSA </category>
           
       </categories>
       
@@ -110,6 +138,35 @@
     
     
     <entry>
+      <title>公路村村通 Prim算法 （链式前向星实现）</title>
+      <link href="/2024/10/19/%E5%85%AC%E8%B7%AF%E6%9D%91%E6%9D%91%E9%80%9A/"/>
+      <url>/2024/10/19/%E5%85%AC%E8%B7%AF%E6%9D%91%E6%9D%91%E9%80%9A/</url>
+      
+        <content type="html"><![CDATA[<h2 id="题目描述"><a href="#题目描述" class="headerlink" title="题目描述"></a>题目描述</h2><p>现有村落间道路的统计数据表中，列出了有可能建设成标准公路的若干条道路的成本，求使每个村落都有公路连通所需要的最低成本。</p><h3 id="输入格式"><a href="#输入格式" class="headerlink" title="输入格式"></a>输入格式</h3><p>输入数据包括城镇数目正整数 N（≤1000）和候选道路数目 M（≤3N）；随后的 M 行对应 M 条道路，每行给出 3 个正整数，分别是该条道路直接连通的两个城镇的编号以及该道路改建的预算成本。为简单起见，城镇从 1 到 N 编号。</p><h3 id="输出格式"><a href="#输出格式" class="headerlink" title="输出格式"></a>输出格式</h3><p>输出村村通需要的最低成本。如果输入数据不足以保证畅通，则输出 −1，表示需要建设更多公路。</p><h3 id="输入样例"><a href="#输入样例" class="headerlink" title="输入样例"></a>输入样例</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">6</span> <span class="number">15</span></span><br><span class="line"><span class="number">1</span> <span class="number">2</span> <span class="number">5</span></span><br><span class="line"><span class="number">1</span> <span class="number">3</span> <span class="number">3</span></span><br><span class="line"><span class="number">1</span> <span class="number">4</span> <span class="number">7</span></span><br><span class="line"><span class="number">1</span> <span class="number">5</span> <span class="number">4</span></span><br><span class="line"><span class="number">1</span> <span class="number">6</span> <span class="number">2</span></span><br><span class="line"><span class="number">2</span> <span class="number">3</span> <span class="number">4</span></span><br><span class="line"><span class="number">2</span> <span class="number">4</span> <span class="number">6</span></span><br><span class="line"><span class="number">2</span> <span class="number">5</span> <span class="number">2</span></span><br><span class="line"><span class="number">2</span> <span class="number">6</span> <span class="number">6</span></span><br><span class="line"><span class="number">3</span> <span class="number">4</span> <span class="number">6</span></span><br><span class="line"><span class="number">3</span> <span class="number">5</span> <span class="number">1</span></span><br><span class="line"><span class="number">3</span> <span class="number">6</span> <span class="number">1</span></span><br><span class="line"><span class="number">4</span> <span class="number">5</span> <span class="number">10</span></span><br><span class="line"><span class="number">4</span> <span class="number">6</span> <span class="number">8</span></span><br><span class="line"><span class="number">5</span> <span class="number">6</span> <span class="number">3</span></span><br></pre></td></tr></table></figure><h3 id="输出样例"><a href="#输出样例" class="headerlink" title="输出样例"></a>输出样例</h3><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">12</span><br></pre></td></tr></table></figure><h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>链式前向星存图，然后从某一个结点开始遍历整个图，每次选择已经收入囊中的结点距离他们所能到达的结点的最小权值即可。</p><h3 id="AC-代码"><a href="#AC-代码" class="headerlink" title="AC 代码"></a>AC 代码</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;bits/stdc++.h&gt;</span></span></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"><span class="type">const</span> <span class="type">int</span> fw=<span class="number">1e5</span><span class="number">+10</span>;</span><br><span class="line"><span class="type">int</span> e[fw],w[fw],ne[fw],h[fw],bj[fw],xb,n,m,zx,gs;<span class="comment">//e数组存储终点值，w数组存储权值，ne数组存储下一个结点的下标，h数组存储头结点下标，bj数组标记是否被访问过，xb用来存储e数组用到了哪里，zx用来存储最小总权值，gs用来存储已经收入囊中的结点个数。</span></span><br><span class="line">vector&lt;<span class="type">int</span>&gt;v;<span class="comment">//存储已经收入囊中的结点</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">cr</span><span class="params">(<span class="type">int</span> x,<span class="type">int</span> y,<span class="type">int</span> z)</span></span>&#123;<span class="comment">//链式前向星插入模板</span></span><br><span class="line">e[xb]=y;</span><br><span class="line">w[xb]=z;</span><br><span class="line">ne[xb]=h[x];</span><br><span class="line">h[x]=xb++;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">prim</span><span class="params">(<span class="type">int</span> x)</span></span>&#123;</span><br><span class="line"><span class="keyword">if</span>(gs==n<span class="number">-1</span>)&#123;<span class="comment">//如果所有结点都被访问了就直接输出即可</span></span><br><span class="line">cout&lt;&lt;zx;</span><br><span class="line"><span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line">bj[x]=<span class="number">1</span>;</span><br><span class="line">v.<span class="built_in">push_back</span>(x);<span class="comment">//收入囊中</span></span><br><span class="line"><span class="type">int</span> t=<span class="number">99999999</span>,u=<span class="number">-1</span>;</span><br><span class="line"><span class="keyword">for</span>(<span class="keyword">auto</span> k:v)&#123;<span class="comment">//寻找最小权值的边</span></span><br><span class="line"><span class="keyword">for</span>(<span class="type">int</span> i=h[k];i!=<span class="number">-1</span>;i=ne[i])&#123;</span><br><span class="line"><span class="keyword">if</span>(w[i]&lt;t&amp;&amp;(!bj[e[i]]))&#123;</span><br><span class="line">t=w[i];</span><br><span class="line">u=e[i];</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">if</span>(u!=<span class="number">-1</span>)&#123;</span><br><span class="line">zx+=t;</span><br><span class="line">gs++;</span><br><span class="line"><span class="built_in">prim</span>(u);</span><br><span class="line">&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line"><span class="built_in">memset</span>(h,<span class="number">-1</span>,<span class="built_in">sizeof</span>(h));</span><br><span class="line">cin&gt;&gt;n&gt;&gt;m;</span><br><span class="line"><span class="keyword">while</span>(m--)&#123;</span><br><span class="line"><span class="type">int</span> a,b,c;</span><br><span class="line">cin&gt;&gt;a&gt;&gt;b&gt;&gt;c;</span><br><span class="line"><span class="built_in">cr</span>(a,b,c);</span><br><span class="line"><span class="built_in">cr</span>(b,a,c);</span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">prim</span>(n);</span><br><span class="line">cout&lt;&lt;<span class="number">0</span>;</span><br><span class="line"><span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><hr>]]></content>
+      
+      
+      <categories>
+          
+          <category> DSA </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 算法 </tag>
+            
+            <tag> 图论 </tag>
+            
+            <tag> Prim算法 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>7-5 哈夫曼树 （20分）</title>
       <link href="/2024/10/18/%E5%93%88%E5%A4%AB%E6%9B%BC%E6%A0%91/"/>
       <url>/2024/10/18/%E5%93%88%E5%A4%AB%E6%9B%BC%E6%A0%91/</url>
@@ -119,7 +176,7 @@
       
       <categories>
           
-          <category> 数据结构与算法 </category>
+          <category> DSA </category>
           
       </categories>
       
